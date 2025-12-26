@@ -10,3 +10,8 @@ def root():
 @app.get("/healthz")
 def healthz():
     return {"ok": True, "port": os.getenv("PORT")}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
