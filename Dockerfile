@@ -2,14 +2,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install deps
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app
 COPY . /app
 
-ENV PORT=8000
-EXPOSE 8000
-
-CMD ["sh", "-c", "python -m uvicorn asgi:app --host 0.0.0.0 --port ${PORT}"]
+# Render sets PORT env var at runtime
+CMD ["sh","-c","python -m uvicorn asgi:app --host 0.0.0.0 --port ${PORT:-8000}"]
