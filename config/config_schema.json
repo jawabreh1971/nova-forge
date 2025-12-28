@@ -1,0 +1,39 @@
+{
+  "ATLAS_ENV": {
+    "type": "string",
+    "allowed": [
+      "dev",
+      "staging",
+      "prod"
+    ],
+    "required": true
+  },
+  "ATLAS_LOG_LEVEL": {
+    "type": "string",
+    "required": false
+  },
+  "ATLAS_SERVICE_NAME": {
+    "type": "string",
+    "required": false
+  },
+  "ATLAS_VERSION": {
+    "type": "string",
+    "required": false
+  },
+  "ATLAS_ENABLE_METRICS": {
+    "type": "bool",
+    "required": false
+  },
+  "ATLAS_ENABLE_RATE_LIMIT": {
+    "type": "bool",
+    "required": false
+  },
+  "ATLAS_RATE_LIMIT_RPS": {
+    "type": "int",
+    "required": false
+  },
+  "ATLAS_RATE_LIMIT_BURST": {
+    "type": "int",
+    "required": false
+  }
+}

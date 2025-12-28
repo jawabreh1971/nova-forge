@@ -1,0 +1,25 @@
+# Atlas Production Dockerfile (Reference)
+# Works for FastAPI backend with optional frontend build step.
+# Adjust paths to your repo structure.
+
+FROM python:3.11-slim AS backend
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+
+# Copy backend requirements
+COPY backend/requirements.txt /app/backend/requirements.txt
+COPY requirements-prod.txt /app/requirements-prod.txt
+
+RUN pip install --no-cache-dir -U pip wheel setuptools  && pip install --no-cache-dir -r /app/backend/requirements.txt  && pip install --no-cache-dir -r /app/requirements-prod.txt
+
+# Copy code
+COPY backend /app/backend
+COPY atlas_prod /app/atlas_prod
+
+WORKDIR /app/backend
+EXPOSE 8080
+
+# IMPORTANT: set correct import to your app
+ENV APP_IMPORT="app.main:app"
+
+CMD ["sh","-c","python -m uvicorn ${APP_IMPORT} --host 0.0.0.0 --port 8080"]
