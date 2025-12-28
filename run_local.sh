@@ -1,13 +1,11 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
+cd "$(dirname "$0")"
 
-cd "$HOME/nova-forge"
-
-python -m venv .venv 2>/dev/null || true
+python -m venv .venv
 source .venv/bin/activate
+python -m pip install -U pip setuptools wheel
+python -m pip install --no-cache-dir -r requirements.txt
 
-pip install -U pip setuptools wheel
-pip install -r requirements.txt
-
-export PYTHONPATH="$PWD"
-exec python -m uvicorn nova.app:app --host 0.0.0.0 --port 8000
+echo "Running Atlas backend on http://127.0.0.1:8000"
+python -m uvicorn asgi:app --host 127.0.0.1 --port 8000

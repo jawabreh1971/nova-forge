@@ -1,86 +1,48 @@
-import os
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import PlainTextResponse
-from fastapi import FastAPI, HTTPException
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
 
-app = FastAPI(title="Nova-Forge (Atlas)")
-import atlas_runtime
+import os
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+
+APP_TITLE = "Atlas (Nova-Forge)"
+app = FastAPI(title=APP_TITLE, version="1.0.0")
+
 
 @app.get("/healthz")
 def healthz():
-    return {"status": "ok"}
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-
-class ChatIn(BaseModel):
-    message: str
-    session_id: Optional[str] = "default"
-    meta: Optional[Dict[str, Any]] = None
-
-class ChatOut(BaseModel):
-    reply: str
-    session_id: str
-
-@app.post("/api/chat", response_model=ChatOut)
-def api_chat(payload: ChatIn):
-    msg = (payload.message or "").strip()
-    if not msg:
-        return {"reply": "اكتب رسالة أولاً.", "session_id": payload.session_id or "default"}
-    # MVP reply (Echo) — جاهز للربط مع LLM لاحقًا
-    return {"reply": f"Atlas Echo: {msg}", "session_id": payload.session_id or "default"}
+    return {"ok": True, "service": "atlas-backend", "version": "1.0.0"}
 
 
-BASE_DIR = os.path.dirname(__file__)
-FRONTEND_DIST = os.path.join(BASE_DIR, "frontend", "dist")
-INDEX_HTML = os.path.join(FRONTEND_DIST, "index.html")
+# ---- Serve frontend build (Vite dist) ----
+BASE_DIR = Path(__file__).resolve().parent
+DIST_DIR = BASE_DIR / "frontend" / "dist"
 
-# Serve React build at root
-if os.path.isfile(INDEX_HTML):
-    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+if DIST_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="assets")
+
+    @app.get("/")
+    def index():
+        index_file = DIST_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(str(index_file))
+        return JSONResponse({"ok": True, "note": "frontend dist missing index.html"})
+
+    # SPA fallback
+    @app.get("/{path:path}")
+    def spa_fallback(path: str):
+        # if a real file exists inside dist, serve it
+        candidate = DIST_DIR / path
+        if candidate.exists() and candidate.is_file():
+            return FileResponse(str(candidate))
+
+        index_file = DIST_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(str(index_file))
+        return JSONResponse({"ok": True, "note": "frontend dist not found"})
 else:
     @app.get("/")
-    def root_backend_only():
-        return PlainTextResponse(
-            f"OK (backend). UI missing at: {INDEX_HTML}",
-            status_code=200
-        )
-
-# === ATLAS API (Settings + Chat) ===
-
-@app.get("/api/settings")
-def api_get_settings() -> Dict[str, Any]:
-    settings = atlas_runtime.load_settings()
-    return atlas_runtime.masked_settings(settings)
-
-@app.post("/api/settings")
-def api_set_settings(payload: Dict[str, Any]) -> Dict[str, Any]:
-    # Minimal protection: optional ADMIN_TOKEN
-    admin_token = (os.getenv("ATLAS_ADMIN_TOKEN", "") or "").strip()
-    if admin_token:
-        supplied = (payload.get("admin_token") or "").strip()
-        if supplied != admin_token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-    patch = dict(payload)
-    patch.pop("admin_token", None)
-    settings = atlas_runtime.save_settings(patch)
-    return atlas_runtime.masked_settings(settings)
-
-@app.post("/api/chat")
-async def api_chat(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    payload:
-      - messages: [{role: 'system'|'user'|'assistant', content: '...'}]
-    """
-    messages = payload.get("messages", [])
-    if not isinstance(messages, list) or not messages:
-        raise HTTPException(status_code=400, detail="messages[] required")
-
-    settings = atlas_runtime.load_settings()
-    try:
-        text = await atlas_runtime.openai_chat(messages=messages, settings=settings)
-        return {"ok": True, "reply": text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)[:500])
+    def root_no_frontend():
+        return {"ok": True, "note": "frontend/dist not present. Build frontend then redeploy."}
