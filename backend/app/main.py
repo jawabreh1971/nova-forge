@@ -1,4 +1,10 @@
-from atlas_prod.bootstrap import apply_production_defaults
+try:
+    from atlas_prod.bootstrap import apply_production_defaults
+    apply_production_defaults()
+except Exception:
+    # Termux/local: atlas_prod may be absent; skip production defaults
+    pass
+
 
 from pathlib import Path
 from fastapi import FastAPI
@@ -7,12 +13,17 @@ from fastapi.staticfiles import StaticFiles
 
 # API app (نخلي الدوكس تحت /api/docs حتى ما تتعارض مع React على "/")
 api = FastAPI(title="nova-forge-api", docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json")
+api.include_router(version_router)
 
 @api.get("/ping")
 def ping():
     return {"pong": True}
 
 app = FastAPI(title="nova-forge")
+app.include_router(version_router)
+
+from app.version import router as version_router
+
 
 @app.get("/healthz")
 def healthz():
